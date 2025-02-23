@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screenshot to LLM</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Screenshot to LLM</h1>
+        <div class="buttons">
+            <button id="capture-btn" class="primary-btn">
+                <span class="icon">📸</span>
+                Select Area
+            </button>
+            <button id="process-btn" class="primary-btn" disabled>
+                <span class="icon">🔄</span>
+                Process Image
+            </button>
+        </div>
+        <div id="preview-container" class="hidden">
+            <img id="image-preview" alt="Screenshot Preview">
+        </div>
+        <div id="result-container" class="hidden">
+            <h2>Processed Result</h2>
+            <div id="llm-context" class="result-box"></div>
+            <button id="copy-btn" class="secondary-btn">
+                <span class="icon">📋</span>
+                Copy Result
+            </button>
+        </div>
+        <div id="status" class="status-text"></div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

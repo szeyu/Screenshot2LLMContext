@@ -1,0 +1,30 @@
+/* content/content.css */
+#selection-overlay {
+    position: fixed;
+    pointer-events: none;
+    z-index: 2147483647;
+}
+
+.screenshot-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    border-radius: 4px;
+    color: white;
+    z-index: 2147483647;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.screenshot-notification.info {
+    background-color: #4CAF50;
+}
+
+.screenshot-notification.error {
+    background-color: #ff4444;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
