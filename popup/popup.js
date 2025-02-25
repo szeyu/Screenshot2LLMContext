@@ -5,11 +5,13 @@ class PopupManager {
         captureBtn: document.getElementById('capture-btn'),
         processBtn: document.getElementById('process-btn'),
         copyBtn: document.getElementById('copy-btn'),
+        settingsBtn: document.getElementById('settings-btn'),
         statusText: document.getElementById('status'),
         imagePreview: document.getElementById('image-preview'),
         previewContainer: document.getElementById('preview-container'),
         resultContainer: document.getElementById('result-container'),
-        llmContext: document.getElementById('llm-context')
+        llmContext: document.getElementById('llm-context'),
+        promptSelect: document.getElementById('prompt-select')
       };
       
       this.initialize();
@@ -21,6 +23,11 @@ class PopupManager {
       
       // Add event listener for when popup is about to close
       window.addEventListener('beforeunload', () => this.resetOnClose());
+      
+      // Setup settings button
+      this.setupSettingsButton();
+
+      this.loadPromptTemplates();
     }
   
     setupEventListeners() {
@@ -46,17 +53,6 @@ class PopupManager {
                     resolve(true);
                 } else {
                     this.updateStatus('API key not found. Please configure in settings.', 'error', false, 0);
-                    // Add settings button
-                    if (!document.getElementById('settings-btn')) {
-                        const settingsBtn = document.createElement('button');
-                        settingsBtn.id = 'settings-btn';
-                        settingsBtn.className = 'secondary-btn';
-                        settingsBtn.innerHTML = '<span class="icon">⚙️</span> Settings';
-                        settingsBtn.addEventListener('click', () => {
-                            chrome.tabs.create({ url: 'settings/settings.html' });
-                        });
-                        this.elements.statusText.parentNode.insertBefore(settingsBtn, this.elements.statusText.nextSibling);
-                    }
                     resolve(false);
                 }
             });
@@ -132,9 +128,12 @@ class PopupManager {
         this.elements.processBtn.disabled = true;
 
         try {
-            // Send the image to the background script
+            const selectedPrompt = this.elements.promptSelect.value;
+            
+            // Send the image to the background script with the selected prompt
             chrome.runtime.sendMessage({
-                action: 'processImage'
+                action: 'processImage',
+                prompt: selectedPrompt
             });
 
             // Wait for the processing to complete
@@ -216,6 +215,40 @@ class PopupManager {
                 this.elements.statusText.className = 'status-text';
             }, timeout);
         }
+    }
+
+    // Replace addSettingsButton with setupSettingsButton
+    setupSettingsButton() {
+      this.elements.settingsBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: 'settings/settings.html' });
+      });
+    }
+
+    loadPromptTemplates() {
+      chrome.storage.sync.get('promptTemplates', (result) => {
+        const prompts = result.promptTemplates || [];
+        
+        // Clear existing options
+        this.elements.promptSelect.innerHTML = '';
+        
+        // Add options for each prompt
+        prompts.forEach(prompt => {
+          const option = document.createElement('option');
+          option.value = prompt.text;
+          option.textContent = prompt.name;
+          option.selected = prompt.isDefault;
+          this.elements.promptSelect.appendChild(option);
+        });
+        
+        // If no prompts, add a default
+        if (prompts.length === 0) {
+          const option = document.createElement('option');
+          option.value = "I want you to describe this image in detail. Be very specific and detailed. Because your output will become a context for a LLM to answer a question.";
+          option.textContent = "Detailed Description";
+          option.selected = true;
+          this.elements.promptSelect.appendChild(option);
+        }
+      });
     }
 }
   
