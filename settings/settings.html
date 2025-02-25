@@ -8,6 +8,9 @@
 <body>
     <div class="container">
         <h1>Screenshot to LLM - Settings</h1>
+
+        <div id="status" class="status-text"></div>
+        <br>
         
         <div class="settings-section">
             <h2>API Key Configuration</h2>
@@ -25,7 +28,29 @@
                 <button id="test-btn" class="secondary-btn">Test API Key</button>
             </div>
             
-            <div id="status" class="status-text"></div>
+        </div>
+        
+        <div class="settings-section">
+            <h2>Prompt Templates</h2>
+            <p>Customize the prompts used to process images.</p>
+            
+            <div id="prompts-container">
+                <!-- Prompt templates will be added here -->
+            </div>
+            
+            <div class="form-group">
+                <label for="prompt-name">Prompt Name:</label>
+                <input type="text" id="prompt-name" placeholder="E.g., Detailed Description">
+            </div>
+            
+            <div class="form-group">
+                <label for="prompt-text">Prompt Text:</label>
+                <textarea id="prompt-text" placeholder="Enter your prompt text here..." rows="4"></textarea>
+            </div>
+            
+            <div class="button-group">
+                <button id="add-prompt-btn" class="primary-btn">Add Prompt</button>
+            </div>
         </div>
         
         <div class="info-section">

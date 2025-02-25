@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
     }
     if (message.action === 'processImage') {
-        processImage(sender.tab);
+        processImage(sender.tab, message.prompt);
     }
     if (message.action === 'saveApiKey') {
         chrome.storage.sync.set({ geminiApiKey: message.apiKey }, () => {
@@ -76,9 +76,6 @@ function captureAndProcessArea(rect, tab) {
                 }, () => {
                     // Open the popup after storage is updated
                     chrome.action.openPopup();
-                    
-                    // Automatically process the image
-                    processImage();
                 });
             })
             .catch(error => {
@@ -87,7 +84,7 @@ function captureAndProcessArea(rect, tab) {
     });
 }
 
-function processImage(tab) {
+function processImage(tab, customPrompt) {
     checkApiKey((hasKey) => {
         if (!hasKey) return;
         
@@ -99,6 +96,9 @@ function processImage(tab) {
             chrome.storage.sync.get('geminiApiKey', (keyResult) => {
                 const apiKey = keyResult.geminiApiKey;
                 
+                // Use the custom prompt or fall back to default
+                const promptText = customPrompt || "I want you to describe this image in detail. Be very specific and detailed. Because your output will become a context for a LLM to answer a question.";
+                
                 // Convert base64 data URL to base64 string by removing the prefix
                 const base64Image = imageUrl.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
@@ -106,7 +106,7 @@ function processImage(tab) {
                 const requestBody = {
                     contents: [{
                         parts: [
-                            { text: "I want you to describe this image in detail. Be very specific and detailed. Because your output will become a context for a LLM to answer a question." },
+                            { text: promptText },
                             {
                                 inline_data: {
                                     mime_type: "image/png",
