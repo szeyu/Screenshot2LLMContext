@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screenshot to LLM - Settings</title>
+    <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Screenshot to LLM - Settings</h1>
+        
+        <div class="settings-section">
+            <h2>API Key Configuration</h2>
+            <p>To use this extension, you need to provide a Google Gemini API key.</p>
+            <p>You can get an API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</p>
+            
+            <div class="form-group">
+                <label for="api-key">Gemini API Key:</label>
+                <input type="password" id="api-key" placeholder="Enter your API key">
+                <button id="show-key" class="icon-btn">👁️</button>
+            </div>
+            
+            <div class="button-group">
+                <button id="save-btn" class="primary-btn">Save API Key</button>
+                <button id="test-btn" class="secondary-btn">Test API Key</button>
+            </div>
+            
+            <div id="status" class="status-text"></div>
+        </div>
+        
+        <div class="info-section">
+            <h3>About API Keys</h3>
+            <ul>
+                <li>Your API key is stored securely in your browser.</li>
+                <li>It is never sent to our servers.</li>
+                <li>You can change or remove it at any time.</li>
+                <li>API usage is subject to Google's pricing and terms.</li>
+            </ul>
+        </div>
+    </div>
+    <script src="settings.js"></script>
+</body>
+</html> 

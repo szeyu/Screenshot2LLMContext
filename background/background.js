@@ -1,11 +1,33 @@
 // background.js
 
+function checkApiKey(callback) {
+  chrome.storage.sync.get('geminiApiKey', (result) => {
+    if (result.geminiApiKey) {
+      callback(true);
+    } else {
+      // Open settings page if no API key is found
+      chrome.tabs.create({ url: 'settings/settings.html' });
+      callback(false);
+    }
+  });
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'captureArea') {
-        captureAndProcessArea(message.rect, sender.tab);
+        checkApiKey((hasKey) => {
+            if (hasKey) {
+                captureAndProcessArea(message.rect, sender.tab);
+            }
+        });
     }
     if (message.action === 'processImage') {
         processImage(sender.tab);
+    }
+    if (message.action === 'saveApiKey') {
+        chrome.storage.sync.set({ geminiApiKey: message.apiKey }, () => {
+            sendResponse({ success: true });
+        });
+        return true; // Required for async sendResponse
     }
 });
 
@@ -66,77 +88,86 @@ function captureAndProcessArea(rect, tab) {
 }
 
 function processImage(tab) {
-    chrome.storage.local.get('lastCapturedImage', (result) => {
-        const imageUrl = result.lastCapturedImage;
-        console.log('Processing image:', imageUrl);
+    checkApiKey((hasKey) => {
+        if (!hasKey) return;
+        
+        chrome.storage.local.get('lastCapturedImage', (result) => {
+            const imageUrl = result.lastCapturedImage;
+            console.log('Processing image:', imageUrl);
 
-        // Convert base64 data URL to base64 string by removing the prefix
-        const base64Image = imageUrl.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+            // Get the API key from storage
+            chrome.storage.sync.get('geminiApiKey', (keyResult) => {
+                const apiKey = keyResult.geminiApiKey;
+                
+                // Convert base64 data URL to base64 string by removing the prefix
+                const base64Image = imageUrl.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
-        // Prepare the request body
-        const requestBody = {
-            contents: [{
-                parts: [
-                    { text: "I want you to describe this image in detail. Be very specific and detailed. Because your output will become a context for a LLM to answer a question." },
-                    {
-                        inline_data: {
-                            mime_type: "image/png",
-                            data: base64Image
-                        }
+                // Prepare the request body
+                const requestBody = {
+                    contents: [{
+                        parts: [
+                            { text: "I want you to describe this image in detail. Be very specific and detailed. Because your output will become a context for a LLM to answer a question." },
+                            {
+                                inline_data: {
+                                    mime_type: "image/png",
+                                    data: base64Image
+                                }
+                            }
+                        ]
+                    }]
+                };
+
+                // Call Gemini API with the stored API key
+                fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Extract just the text content from the response
+                    let textContent = '';
+                    if (data.candidates && data.candidates[0]?.content?.parts) {
+                        textContent = data.candidates[0].content.parts
+                            .filter(part => part.text)
+                            .map(part => part.text)
+                            .join('\n');
                     }
-                ]
-            }]
-        };
+                    
+                    // Store both raw data and extracted text
+                    chrome.storage.local.set({ 
+                        lastProcessedResult: {
+                            raw: data,
+                            text: textContent || 'No text content found in response'
+                        }
+                    });
 
-        // Call Gemini API
-        fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Extract just the text content from the response
-            let textContent = '';
-            if (data.candidates && data.candidates[0]?.content?.parts) {
-                textContent = data.candidates[0].content.parts
-                    .filter(part => part.text)
-                    .map(part => part.text)
-                    .join('\n');
-            }
-            
-            // Store both raw data and extracted text
-            chrome.storage.local.set({ 
-                lastProcessedResult: {
-                    raw: data,
-                    text: textContent || 'No text content found in response'
-                }
-            });
+                    // Notify the popup that processing is complete
+                    chrome.runtime.sendMessage({
+                        action: 'processingComplete',
+                        success: true
+                    });
+                })
+                .catch(error => {
+                    console.error('Error calling Gemini API:', error);
+                    const errorMessage = error.toString();
+                    
+                    chrome.storage.local.set({ 
+                        lastProcessedResult: {
+                            error: errorMessage,
+                            context: `Error: ${errorMessage}`
+                        }
+                    });
 
-            // Notify the popup that processing is complete
-            chrome.runtime.sendMessage({
-                action: 'processingComplete',
-                success: true
-            });
-        })
-        .catch(error => {
-            console.error('Error calling Gemini API:', error);
-            const errorMessage = error.toString();
-            
-            chrome.storage.local.set({ 
-                lastProcessedResult: {
-                    error: errorMessage,
-                    context: `Error: ${errorMessage}`
-                }
-            });
-
-            // Notify the popup about the error
-            chrome.runtime.sendMessage({
-                action: 'processingComplete',
-                success: false,
-                error: errorMessage
+                    // Notify the popup about the error
+                    chrome.runtime.sendMessage({
+                        action: 'processingComplete',
+                        success: false,
+                        error: errorMessage
+                    });
+                });
             });
         });
     });

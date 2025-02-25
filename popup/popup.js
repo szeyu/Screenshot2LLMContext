@@ -39,7 +39,34 @@ class PopupManager {
       });
     }
   
+    async checkApiKey() {
+        return new Promise((resolve) => {
+            chrome.storage.sync.get('geminiApiKey', (result) => {
+                if (result.geminiApiKey) {
+                    resolve(true);
+                } else {
+                    this.updateStatus('API key not found. Please configure in settings.', 'error', false, 0);
+                    // Add settings button
+                    if (!document.getElementById('settings-btn')) {
+                        const settingsBtn = document.createElement('button');
+                        settingsBtn.id = 'settings-btn';
+                        settingsBtn.className = 'secondary-btn';
+                        settingsBtn.innerHTML = '<span class="icon">⚙️</span> Settings';
+                        settingsBtn.addEventListener('click', () => {
+                            chrome.tabs.create({ url: 'settings/settings.html' });
+                        });
+                        this.elements.statusText.parentNode.insertBefore(settingsBtn, this.elements.statusText.nextSibling);
+                    }
+                    resolve(false);
+                }
+            });
+        });
+    }
+  
     async checkForExistingImage() {
+        // Check for API key first
+        const hasApiKey = await this.checkApiKey();
+        
         const result = await chrome.storage.local.get(['lastCapturedImage', 'lastProcessedResult', 'captureComplete', 'captureInProgress']);
         
         if (result.captureComplete) {
@@ -54,8 +81,8 @@ class PopupManager {
         } else if (result.captureInProgress) {
             // If capture is in progress, do nothing and wait
             chrome.storage.local.remove('captureInProgress');
-        } else {
-            // Start a new capture
+        } else if (hasApiKey) {
+            // Only start a new capture if we have an API key
             setTimeout(() => this.startCapture(), 100);
         }
     
@@ -66,6 +93,10 @@ class PopupManager {
     }
     
     async startCapture() {
+        // Check for API key first
+        const hasApiKey = await this.checkApiKey();
+        if (!hasApiKey) return;
+        
         this.updateStatus('Select an area to capture...', 'info', false, 0);
         
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
