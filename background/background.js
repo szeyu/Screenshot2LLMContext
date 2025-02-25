@@ -47,7 +47,17 @@ function captureAndProcessArea(rect, tab) {
             .then(croppedDataUrl => {
                 // Store the cropped image
                 console.log('Cropped image URL:', croppedDataUrl);
-                chrome.storage.local.set({ lastCapturedImage: croppedDataUrl });
+                chrome.storage.local.set({ 
+                    lastCapturedImage: croppedDataUrl,
+                    captureComplete: true,  // Flag to indicate capture is complete
+                    captureInProgress: false // Clear the in-progress flag
+                }, () => {
+                    // Open the popup after storage is updated
+                    chrome.action.openPopup();
+                    
+                    // Automatically process the image
+                    processImage();
+                });
             })
             .catch(error => {
                 console.error('Error processing image:', error);
@@ -79,7 +89,7 @@ function processImage(tab) {
         };
 
         // Call Gemini API
-        fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyDpuMHSQ_iIL5cWsHPImMKolz-qvLyxjeI', {
+        fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

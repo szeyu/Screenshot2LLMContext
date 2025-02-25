@@ -18,6 +18,9 @@ class PopupManager {
     initialize() {
       this.setupEventListeners();
       this.checkForExistingImage();
+      
+      // Add event listener for when popup is about to close
+      window.addEventListener('beforeunload', () => this.resetOnClose());
     }
   
     setupEventListeners() {
@@ -25,22 +28,45 @@ class PopupManager {
       this.elements.processBtn.addEventListener('click', () => this.processImage());
       this.elements.copyBtn.addEventListener('click', () => this.copyResult());
     }
+    
+    // Reset everything when popup is closed
+    resetOnClose() {
+      // Only reset if we're not in the middle of a capture
+      chrome.storage.local.get('captureInProgress', (result) => {
+        if (!result.captureInProgress) {
+          chrome.storage.local.remove(['lastCapturedImage', 'lastProcessedResult', 'captureComplete']);
+        }
+      });
+    }
   
     async checkForExistingImage() {
-        const result = await chrome.storage.local.get(['lastCapturedImage', 'lastProcessedResult']);
+        const result = await chrome.storage.local.get(['lastCapturedImage', 'lastProcessedResult', 'captureComplete', 'captureInProgress']);
         
-        if (result.lastCapturedImage) {
-            this.showPreview(result.lastCapturedImage);
+        if (result.captureComplete) {
+            // If capture was just completed, show preview and process
+            if (result.lastCapturedImage) {
+                this.showPreview(result.lastCapturedImage);
+                // Clear the flag
+                chrome.storage.local.remove('captureComplete');
+                // Process the image
+                setTimeout(() => this.processImage(), 300);
+            }
+        } else if (result.captureInProgress) {
+            // If capture is in progress, do nothing and wait
+            chrome.storage.local.remove('captureInProgress');
+        } else {
+            // Start a new capture
+            setTimeout(() => this.startCapture(), 100);
         }
     
+        // Show any existing results
         if (result.lastProcessedResult) {
             this.displayResult(result.lastProcessedResult);
         }
     }
     
-  
     async startCapture() {
-        this.updateStatus('Select an area to capture...');
+        this.updateStatus('Select an area to capture...', 'info', false, 0);
         
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         
@@ -49,12 +75,18 @@ class PopupManager {
             return;
         }
 
+        // Set flag that capture is in progress
+        chrome.storage.local.set({ captureInProgress: true });
+
         await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             function: () => {
-            document.dispatchEvent(new CustomEvent('start-screenshot-selection'));
+              document.dispatchEvent(new CustomEvent('start-screenshot-selection'));
             }
         });
+        
+        // Minimize the popup to get out of the way
+        window.close();
     }
   
     showPreview(imageUrl) {
@@ -65,7 +97,7 @@ class PopupManager {
     }
   
     async processImage() {
-        this.updateStatus('Processing image...', 'info', true);
+        this.updateStatus('Processing image...', 'info', true, 0);
         this.elements.processBtn.disabled = true;
 
         try {
@@ -154,8 +186,7 @@ class PopupManager {
             }, timeout);
         }
     }
-    
-  }
+}
   
 // Initialize popup manager when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
